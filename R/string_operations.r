@@ -6,7 +6,9 @@
 
 map_to_ansi <- function(x, text = NULL) {
 
-  if (is.null(text)) text <- non_matching(re_table(ansi_regex, x), x)
+  if (is.null(text)) {
+    text <- non_matching(re_table(ansi_regex, x), x, empty=TRUE)
+  }
 
   map <- lapply(
     text,
@@ -107,7 +109,7 @@ col_nchar <- function(x, ...) {
 
 col_substr <- function(x, start, stop) {
   ansi <- re_table(ansi_regex, x)
-  text <- non_matching(ansi, x)
+  text <- non_matching(ansi, x, empty=TRUE)
   mapper <- map_to_ansi(x, text = text)
   nstart <- mapper(start)
   nstop  <- mapper(stop)
@@ -212,6 +214,13 @@ col_strsplit <- function(x, split, ...) {
   plain <- strip_style(x)
   splits <- re_table(split, plain, ...)
   chunks <- non_matching(splits, plain, empty = TRUE)
+  # drop any zero length trailing chunks that are created when the split
+  # happens at end of string; this is to replicate 'substr' behavior
+  chunks <- lapply(
+    chunks,
+    function(y) if(nrow(y) > 1L && !tail(y, 1L)$length) head(y, -1L) else y
+  )
+  # Pull out chunks from colored string
   mapply(chunks, x, SIMPLIFY = FALSE, FUN = function(tab, xx)
     col_substring(xx, tab[, "start"], tab[, "end"]))
 }
